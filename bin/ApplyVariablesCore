@@ -13,8 +13,8 @@ filename=sys.argv[3]
 try:
    with open(filename, "r") as f:
       # find+replace all variables in filename
-	  # where each variable is checked against the enviorment hashtable
-	  # default value to blank string
+      # where each variable is checked against the enviorment hashtable
+      # default value to blank string
       for line in f.readlines():
          while 1:
             # find variable in line
@@ -32,10 +32,10 @@ try:
             except:
                val = ""
 
-			# substitue the variable's value in the line
+            # substitue the variable's value in the line
             line = line.replace(op + var + cl, val)
 
-		 # output substituted line to stdout
+         # output substituted line to stdout
          print(line, end=" ")
 
 except:  # file cannot be opened
