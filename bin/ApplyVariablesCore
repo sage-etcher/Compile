@@ -25,7 +25,7 @@ try:
             if cl_index == -1:
                break
             var = line[op_index + len(op):cl_index]
-            
+
             # get variable from environment (default "")
             try:
                val = os.environ[var]

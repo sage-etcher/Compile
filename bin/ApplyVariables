@@ -29,12 +29,10 @@ filename=$(Arg 1)          # source filename
 # read contents of the ${filename} file
 # find/expand enviornment variables in contents
 # output expanded results to stdout
-ApplyVariablesCore "${open}" "${close}" "${filename}"
-
-# if the function returns an error (commonly, if the file doesn't exist)
-# throw an error and abort
-if (( $? != 0 ))
+if ! ApplyVariablesCore "${open}" "${close}" "${filename}"
 then
+   # if the function returns an error (commonly, if the file doesn't exist)
+   # throw an error and abort
    Die "${filename}: failed"
 fi
 
