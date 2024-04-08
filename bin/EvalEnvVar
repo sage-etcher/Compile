@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+# alternative to bash's `eval "echo \${${VARIABLE_NAME}}"`
+
+import sys
+import os
+
+try:
+	print (os.environ[sys.argv[1]])
+except:
+	print ('')
