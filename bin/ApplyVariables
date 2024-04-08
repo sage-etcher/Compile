@@ -35,6 +35,6 @@ ApplyVariablesCore "${open}" "${close}" "${filename}"
 # throw an error and abort
 if (( $? != 0 ))
 then
-    Die "${filename}: failed"
+   Die "${filename}: failed"
 fi
 
