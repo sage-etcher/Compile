@@ -1,58 +1,83 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
+# imports
 source ScriptFunctions
 Import OptionParser
 Import GoboLinux
 
-helpOnNoArguments=yes
-scriptDescription="Compile patch streamlining tool. Run it once, edit the sources and run it again."
-scriptCredits="Copyright (C) Hisham Muhammad, 2014 - Released under the GNU GPL."
-scriptUsage="<program_name>"
-scriptExample="Bullet"
-Add_Option_Boolean "c" "clean" "Cleanup directories in Archives."
+# options and help menu
+helpOnNoArguments='yes'
+scriptDescription='Compile patch streamlining tool. Run it once, edit the sources and run it again.'
+scriptCredits='Copyright (C) Hisham Muhammad, 2014 - Released under the GNU GPL.'
+scriptUsage='<program_name>'
+scriptExample='Bullet'
+Add_Option_Boolean 'c' 'clean' 'Cleanup directories in Archives.'
 Parse_Options "$@"
 
 Parse_Conf Compile.conf
 
-cd "$compileSourcesDir"
+# try to move to the Sources directory
+# if we cant move to it, throw a fatal error
+cd "${compileSourcesDir}" || Die "cannot move to '${compileSorucesDir}'"
 
-if [ $(basename $(readlink -f .)) != "Sources" ]
+# if the top-most folder we are in, isnt named 'Sources', throw a fatal error
+current_directory=$(readlink -f .)
+if [[ "${current_directory##*/}" != 'Sources' ]]
 then
-   echo "This is designed to run in the Sources directory."
-   exit 1
+   Die 'This is designed to run in the Sources directory.'
 fi
 
-recipedir=`GetRecipe $(Arg 1) $(Arg 2)`
-source "$recipedir/Recipe"
+# Recipe variables
+recipe_name=$(Arg 1)
+recipe_version=$(Arg 2)
 
-if [ -z "$dir" ]
+# get path to the given recipe (using name and version)
+recipedir=$(GetRecipe "${recipe_name}" "${recipe_version}")
+
+# source the Recipe file
+source "${recipedir}/Recipe" || Die "Cannot source '${recipedir}/Recipe' file"
+
+# if no 'dir' is givin in the Recipe, guess it from the url
+if [[ -z "${dir}" ]]
 then
-   dir=`basename "$url" .tar.gz`
-   dir=`basename "$dir" .tar.bz2`
-   dir=`basename "$dir" .tar.xz`
-   dir=`basename "$dir" .tgz`
-   dir=`basename "$dir" .tbz2`
+   dir="${url##*/}"        # isolate filename
+   dir="${dir%.tar.gz}"    # remove '.tar.gz' suffix if present
+   dir="${dir%.tar.xz}"    # "       .tar.xz
+   dir="${dir%.tar.tgz}"   # "       .tgz
+   dir="${dir%.tbz2}"      # "       .tbz2
 fi
-if [ -z "$file" ]
+
+# isolate the bottom-most folder in 'dir'
+# does dir have any '/' characters?
+if [[ "${dir}" == *'/'* ]]
 then
-   file=`basename "$url"`
+   dir="${dir//\/*}"       # isolate the root-most folder
+   dir="${dir:-/}"         # if 'dir' is empty, default to '/' (root folder)
 fi
 
-while Has_Substring "$dir" "/"
-do
-   dir=`dirname "$dir"`
-done
+# if no 'file' is given in the Recipe, guess it from the url
+if [[ -z "${file}" ]]
+then
+   file="${url##*/}"       # isolate the filename
+fi
 
-function cleanup() {
-   if [ -d "$dir" -o -d "$dir.old" ]
+
+cleanup() {
+   # if the 'dir' folder exitsts, 
+   # prompt the user and remove it
+   if [[ -d "${dir}" || -d "${dir}.old" ]]
    then
-      Log_Question "Delete $dir and $dir.old? "
+      # prompt the user
+      local yn=''
+      Log_Question "Delete ${dir} and ${dir}.old? "
       read yn
-      if [ "$yn" = "y" ]
+      if [[ "${yn}" == 'y' ]]
       then
-         rm -rf "$dir"
-         rm -rf "$dir.old"
+         # if they say yes, remove them
+         rm -rf "${dir}"     || Die "Cannot remove '${dir}'"
+         rm -rf "${dir}.old" || Die "Cannot remove '${dir}.old'"
       else
+         # otherwise, exit with an error
          exit 1
       fi
    fi
@@ -60,58 +85,58 @@ function cleanup() {
 
 # Step one: generate two clean directories
 # to start a diff.
-function step_one() {
-   Log_Normal "Directory: $dir"
+step_one() {
+   Log_Normal "Directory: ${dir}"
    cleanup
-   Log_Normal "Extracting ../Archives/$file"
-   aunpack "../Archives/$file"
-   cp -a "$dir" "$dir.old"
+   Log_Normal "Extracting ../Archives/${file}"
+   aunpack "../Archives/${file}"
+   cp -a "${dir}" "${dir}.old"
 }
 
 function step_two() {
 
-   packagename=`Get_Token "$recipedir" "/" "-2"`
-   versionandrevision=`Get_Token "$recipedir" "/" "-1"`
-   newrecipedir="$compileRecipesDir/$packagename/$versionandrevision"
-   if [ "$recipedir" != "$newrecipedir" ]
+   packagename=$(Get_Token "${recipedir}" '/' '-2')
+   versionandrevision=$(Get_Token "${recipedir}" '/' '-1')
+   newrecipedir="${compileRecipesDir}/${packagename}/${versionandrevision}"
+   if [[ "${recipedir}" != "${newrecipedir}" ]]
    then
-      Log_Normal "Copying recipe from $recipedir to $newrecipedir"
-      mkdir -p "$compileRecipesDir/$packagename"
-      cp -R "$recipedir" "$newrecipedir"
-      recipedir="$newrecipedir"
+      Log_Normal "Copying recipe from ${recipedir} to ${newrecipedir}"
+      mkdir -p "${compileRecipesDir}/${packagename}"
+      cp -R "${recipedir}" "${newrecipedir}"
+      recipedir="${newrecipedir}"
    fi
 
-   diff -Nur "$dir.old" "$dir" | mtail --config /System/Settings/Scripts/diff.mtailrc
-   echo "*******************************************************************************"
+   diff -Nur "${dir}.old" "${dir}" | mtail --config '/System/Settings/Scripts/diff.mtailrc'
+   echo '*******************************************************************************'
    echo
-   ls "$recipedir"/*.patch &> /dev/null && {
-      echo "Existing patches:"
-      ls "$recipedir"/*.patch
+   ls "${recipedir}"/*.patch &> /dev/null && {
+      echo 'Existing patches:'
+      ls "${recipedir}"/*.patch
       echo
    }
-   Log_Question "Enter patch name (without path or .patch extension): "
+   Log_Question 'Enter patch name (without path or .patch extension): '
    read patchname
-   if [ "$patchname" != "" ]
+   if [[ ! -z "${patchname}" ]]
    then
-      Log_Question "Please write a description: "
+      Log_Question 'Please write a description: '
       read description
-      for i in `seq -w 20`
+      for i in $(seq -w 20)
       do
-         ls "$recipedir/$i"*".patch" &> /dev/null || break
+         ls "${recipedir}/${i}"*'.patch' &> /dev/null || break
       done
-      patchfilename="$recipedir/$i-$patchname.patch"
-      Log_Normal "Writing $patchfilename ..."
-      echo "$description" > "$patchfilename"
-      echo >> "$patchfilename"
-      diff -Nur "$dir.old" "$dir" >> "$patchfilename"
+      patchfilename="${recipedir}/${i}-${patchname}.patch"
+      Log_Normal "Writing ${patchfilename} ..."
+      echo "${description}" > "${patchfilename}"
+      echo >> "${patchfilename}"
+      diff -Nur "${dir}.old" "${dir}" >> "${patchfilename}"
    fi
    cleanup
 }
 
-if Boolean "clean"
+if Boolean 'clean'
 then
    cleanup
-elif [ -e "$dir.old" ]
+elif [[ -e "${dir}.old" ]]
 then
    step_two
 else
