@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+### Imports ###################################################################
+
+source ScriptFunctions
+Import OptionParser
+
+### Options ###################################################################
+
+helpOnNoArguments='yes'
+scriptNotes="${scriptName} processes a file replacing instances of variables marked
+with special indicators ('@%', '%@' by default) with the contents of equivalent
+environment variables."
+Add_Option_Entry 'o' 'open' 'Opening mark.' '@%'
+Add_Option_Entry 'c' 'close' 'Closing mark.' '%@'
+Add_Option_Entry 'i' 'identifier' 'Add a prefix identifier in the form of '\''<entry>_'\'' to the opening markup.'
+Parse_Options "$@"
+
+### Operation #################################################################
+
+open=$(Entry 'open')       # opening brace (default '@%')
+close=$(Entry 'close')     # closing brace (default '%@')
+if Is_Entry 'identifier'   # variable name prefix (default '')
+then
+   open="${open}$(Entry identifier)_"
+fi
+
+# read $(Arg 1)
+# replace variables with env values
+# output result to stdout
+while IFS= read -r line
+do
+   # expand ALL variables in line
+   while true
+   do
+      # remove everything before the first occurance of ${open}
+      # then, remove everything after the first occurance of ${close}
+      # if at either step nothing is removed, goto next line
+      line_post_open="${line#*${open}}"
+      if [[ "${line_post_open}" == "${line}" ]]
+      then
+         break
+      fi
+      line_post_close="${line_post_open%%${close}*}"
+      if [[ "${line_post_close}" == "${line_post_open}" ]]
+      then
+         break
+      fi
+      variable_name="${line_post_close}"
+
+      # lookup the variable in the enviornment hashtable
+      # NOTE: using python3 rather than `eval` for saftey
+      variable_value=$(EvalEnvVar "${variable_name}")
+
+      # substitute all occurances with the variable_value
+      line="${line//${open}${variable_name}${close}/${variable_value}}"
+   done
+   
+   # output substituted line to stdout
+   echo "${line}"
+
+done < "$(Arg 1)"
+
