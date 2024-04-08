@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ### Imports ###################################################################
 
@@ -7,22 +7,22 @@ Import OptionParser
 
 ### Options ###################################################################
 
-helpOnNoArguments=yes
-scriptNotes="$scriptName processes a file replacing instances of variables marked
+helpOnNoArguments='yes'
+scriptNotes="${scriptName} processes a file replacing instances of variables marked
 with special indicators ('@%', '%@' by default) with the contents of equivalent
 environment variables."
-Add_Option_Entry "o" "open" "Opening mark." "@%"
-Add_Option_Entry "c" "close" "Closing mark." "%@"
-Add_Option_Entry "i" "identifier" "Add a prefix identifier in the form of '<entry>_' to the opening markup."
+Add_Option_Entry 'o' 'open' 'Opening mark.' '@%'
+Add_Option_Entry 'c' 'close' 'Closing mark.' '%@'
+Add_Option_Entry 'i' 'identifier' 'Add a prefix identifier in the form of '\''<entry>_'\'' to the opening markup.'
 Parse_Options "$@"
 
 ### Operation #################################################################
 
-open=`Entry "open"`
-close=`Entry "close"`
-if Is_Entry "identifier"
+open=$(Entry 'open')
+close=$(Entry 'close')
+if Is_Entry 'identifier'
 then
-   open="${open}`Entry identifier`_"
+   open="${open}$(Entry identifier)_"
 fi
 
 cat "$(Arg 1)" | python3 -c '
@@ -45,4 +45,4 @@ for line in sys.stdin.readlines():
          val = ""
       line = line.replace(op + var + cl, val)
    print(line, end=" ")
-' "$open" "$close"
+' "${open}" "${close}"
